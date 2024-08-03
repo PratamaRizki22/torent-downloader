@@ -1,5 +1,3 @@
-# downloader.py
-
 import libtorrent as lt
 import time
 import threading

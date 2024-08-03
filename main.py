@@ -1,5 +1,3 @@
-# main.py
-
 from gui import MainWindow
 from PyQt5.QtWidgets import QApplication
 

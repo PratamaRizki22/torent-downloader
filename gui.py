@@ -1,5 +1,3 @@
-# gui.py
-
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, 
                              QPushButton, QLabel, QFileDialog, QProgressBar, 
                              QHBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QMessageBox, QSizePolicy)
