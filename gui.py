@@ -365,6 +365,7 @@ class MainWindow(QMainWindow):
         if reason == QSystemTrayIcon.Trigger:
             self.show()
 
+
 if __name__ == "__main__":
     app = QApplication([])
     window = MainWindow()
