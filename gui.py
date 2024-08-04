@@ -1,6 +1,7 @@
 # gui.py
 
 import sys
+import qtawesome as qta
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, 
                              QPushButton, QLabel, QFileDialog, QProgressBar, 
                              QHBoxLayout, QListWidget, QListWidgetItem, QLineEdit, 
@@ -27,8 +28,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Torrent Downloader')
         self.setGeometry(100, 100, 1200, 800)
 
+        self.dark_mode = False
+
         # Tray icon setup
-        self.tray_icon = QSystemTrayIcon(QIcon("icon.png"), self)
+        self.tray_icon = QSystemTrayIcon(self.get_icon('fa5s.cloud-download-alt'), self)
         self.tray_icon.setToolTip("Torrent Downloader")
         tray_menu = QMenu()
         restore_action = QAction("Restore", self)
@@ -59,6 +62,10 @@ class MainWindow(QMainWindow):
         toggle_sidebar_action.triggered.connect(self.toggle_sidebar)
         view_menu.addAction(toggle_sidebar_action)
 
+        toggle_dark_mode_action = QAction("Toggle Dark Mode", self)
+        toggle_dark_mode_action.triggered.connect(self.toggle_dark_mode)
+        view_menu.addAction(toggle_dark_mode_action)
+
         # Status bar setup
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -67,17 +74,17 @@ class MainWindow(QMainWindow):
         self.toolbar = QToolBar("Main Toolbar")
         self.addToolBar(Qt.LeftToolBarArea, self.toolbar)
         
-        download_action = QAction(QIcon("icon.png"), "Mengunduh", self)
-        waiting_action = QAction(QIcon("icon.png"), "Menunggu", self)
-        stopped_action = QAction(QIcon("icon.png"), "Terhenti", self)
+        self.download_action = QAction(self.get_icon('fa5s.download'), "Mengunduh", self)
+        self.waiting_action = QAction(self.get_icon('fa5s.pause'), "Menunggu", self)
+        self.stopped_action = QAction(self.get_icon('fa5s.stop'), "Terhenti", self)
 
-        self.toolbar.addAction(download_action)
-        self.toolbar.addAction(waiting_action)
-        self.toolbar.addAction(stopped_action)
+        self.toolbar.addAction(self.download_action)
+        self.toolbar.addAction(self.waiting_action)
+        self.toolbar.addAction(self.stopped_action)
 
-        download_action.triggered.connect(lambda: self.switch_sidebar("Mengunduh"))
-        waiting_action.triggered.connect(lambda: self.switch_sidebar("Menunggu"))
-        stopped_action.triggered.connect(lambda: self.switch_sidebar("Terhenti"))
+        self.download_action.triggered.connect(lambda: self.switch_sidebar("Mengunduh"))
+        self.waiting_action.triggered.connect(lambda: self.switch_sidebar("Menunggu"))
+        self.stopped_action.triggered.connect(lambda: self.switch_sidebar("Terhenti"))
 
         # Sidebar setup for the second sidebar
         self.sidebar = QDockWidget("Sidebar", self)
@@ -128,8 +135,102 @@ class MainWindow(QMainWindow):
 
         self.downloaders = {'Mengunduh': [], 'Menunggu': [], 'Terhenti': []}
 
-        self.setWindowIcon(QIcon("icon.png"))
+        self.setWindowIcon(self.get_icon('fa5s.cloud-download-alt'))
         self.setWindowTitle("Torrent Downloader")
+
+        self.update_styles()  # Apply initial styles
+
+    def get_icon(self, name):
+        if self.dark_mode:
+            return qta.icon(name, color='white')
+        else:
+            return qta.icon(name, color='black')
+
+    def toggle_dark_mode(self):
+        self.dark_mode = not self.dark_mode
+        self.update_icons()
+        self.update_styles()
+
+    def update_icons(self):
+        self.tray_icon.setIcon(self.get_icon('fa5s.cloud-download-alt'))
+        self.setWindowIcon(self.get_icon('fa5s.cloud-download-alt'))
+        self.download_action.setIcon(self.get_icon('fa5s.download'))
+        self.waiting_action.setIcon(self.get_icon('fa5s.pause'))
+        self.stopped_action.setIcon(self.get_icon('fa5s.stop'))
+
+    def update_styles(self):
+        if self.dark_mode:
+            self.setStyleSheet("""
+                QMainWindow {background-color: #2e2e2e; color: white;}
+                QPushButton {
+                    background-color: #444444;
+                    color: white;
+                    border: 1px solid #555555;
+                    border-radius: 4px;
+                    padding: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #555555;
+                    border: 1px solid #666666;
+                }
+                QLineEdit {
+                    background-color: #444444;
+                    color: white;
+                    border: 1px solid #555555;
+                    border-radius: 4px;
+                    padding: 5px;
+                }
+                QListWidget {
+                    background-color: #3e3e3e;
+                    color: white;
+                    border: 1px solid #555555;
+                }
+                QProgressBar {
+                    background-color: #3e3e3e;
+                    color: white;
+                    border: 1px solid #555555;
+                    text-align: center;
+                }
+                QLabel {
+                    color: white;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QMainWindow {background-color: white; color: black;}
+                QPushButton {
+                    background-color: #f0f0f0;
+                    color: black;
+                    border: 1px solid #d0d0d0;
+                    border-radius: 4px;
+                    padding: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #e0e0e0;
+                    border: 1px solid #c0c0c0;
+                }
+                QLineEdit {
+                    background-color: white;
+                    color: black;
+                    border: 1px solid #d0d0d0;
+                    border-radius: 4px;
+                    padding: 5px;
+                }
+                QListWidget {
+                    background-color: white;
+                    color: black;
+                    border: 1px solid #d0d0d0;
+                }
+                QProgressBar {
+                    background-color: white;
+                    color: black;
+                    border: 1px solid #d0d0d0;
+                    text-align: center;
+                }
+                QLabel {
+                    color: black;
+                }
+            """)
 
     def toggle_sidebar(self):
         if self.sidebar.isVisible():
@@ -160,19 +261,19 @@ class MainWindow(QMainWindow):
         progress_bar.setFont(QFont("Arial", 14))
         item.setSizeHint(progress_bar.sizeHint())
 
-        pause_button = QPushButton("Pause")
+        pause_button = QPushButton(self.get_icon('fa5s.pause'), "")
         pause_button.setFixedHeight(40)
         pause_button.setFont(QFont("Arial", 14))
         pause_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         pause_button.clicked.connect(lambda: self.pause_download(downloader, item))
         
-        resume_button = QPushButton("Resume")
+        resume_button = QPushButton(self.get_icon('fa5s.play'), "")
         resume_button.setFixedHeight(40)
         resume_button.setFont(QFont("Arial", 14))
         resume_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         resume_button.clicked.connect(lambda: self.resume_download(downloader, item))
         
-        stop_button = QPushButton("Stop")
+        stop_button = QPushButton(self.get_icon('fa5s.stop'), "")
         stop_button.setFixedHeight(40)
         stop_button.setFont(QFont("Arial", 14))
         stop_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -269,4 +370,3 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     app.exec_()
-    
