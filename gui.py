@@ -1,10 +1,13 @@
 # gui.py
 
+import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, 
                              QPushButton, QLabel, QFileDialog, QProgressBar, 
-                             QHBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QMessageBox, QSizePolicy)
+                             QHBoxLayout, QListWidget, QListWidgetItem, QLineEdit, 
+                             QMessageBox, QSizePolicy, QSystemTrayIcon, QMenu, QAction, 
+                             QDockWidget, QMenuBar, QStatusBar, QToolBar)
 from PyQt5.QtCore import QTimer, Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QIcon
 from downloader import TorrentDownloader
 
 def format_eta(seconds):
@@ -24,19 +27,81 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Torrent Downloader')
         self.setGeometry(100, 100, 1200, 800)
 
-        # Main layout
-        self.main_layout = QVBoxLayout()
+        # Tray icon setup
+        self.tray_icon = QSystemTrayIcon(QIcon("icon.png"), self)
+        self.tray_icon.setToolTip("Torrent Downloader")
+        tray_menu = QMenu()
+        restore_action = QAction("Restore", self)
+        quit_action = QAction("Quit", self)
+        tray_menu.addAction(restore_action)
+        tray_menu.addAction(quit_action)
+        self.tray_icon.setContextMenu(tray_menu)
 
-        # Sidebar
-        self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(200)
-        self.sidebar.addItem("Mengunduh")
-        self.sidebar.addItem("Menunggu")
-        self.sidebar.addItem("Terhenti")
-        self.sidebar.currentItemChanged.connect(self.on_sidebar_item_changed)
+        restore_action.triggered.connect(self.show)
+        quit_action.triggered.connect(QApplication.instance().quit)
+        self.tray_icon.activated.connect(self.on_tray_icon_activated)
+
+        # Show tray icon
+        self.tray_icon.show()
+
+        # Navbar setup
+        menubar = self.menuBar()
+        file_menu = menubar.addMenu("File")
+        view_menu = menubar.addMenu("View")
+        help_menu = menubar.addMenu("Help")
+
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # View menu actions
+        toggle_sidebar_action = QAction("Toggle Sidebar", self)
+        toggle_sidebar_action.triggered.connect(self.toggle_sidebar)
+        view_menu.addAction(toggle_sidebar_action)
+
+        # Status bar setup
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+
+        # Toolbar setup for the first sidebar
+        self.toolbar = QToolBar("Main Toolbar")
+        self.addToolBar(Qt.LeftToolBarArea, self.toolbar)
         
-        # Content area
-        self.content_area = QVBoxLayout()
+        download_action = QAction(QIcon("icon.png"), "Mengunduh", self)
+        waiting_action = QAction(QIcon("icon.png"), "Menunggu", self)
+        stopped_action = QAction(QIcon("icon.png"), "Terhenti", self)
+
+        self.toolbar.addAction(download_action)
+        self.toolbar.addAction(waiting_action)
+        self.toolbar.addAction(stopped_action)
+
+        download_action.triggered.connect(lambda: self.switch_sidebar("Mengunduh"))
+        waiting_action.triggered.connect(lambda: self.switch_sidebar("Menunggu"))
+        stopped_action.triggered.connect(lambda: self.switch_sidebar("Terhenti"))
+
+        # Sidebar setup for the second sidebar
+        self.sidebar = QDockWidget("Sidebar", self)
+        self.sidebar.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+
+        sidebar_content = QWidget()
+        self.sidebar_layout = QVBoxLayout()
+        self.sidebar_list = QListWidget()
+        self.sidebar_list.addItem("Mengunduh")
+        self.sidebar_list.addItem("Menunggu")
+        self.sidebar_list.addItem("Terhenti")
+        self.sidebar_list.currentItemChanged.connect(self.on_sidebar_item_changed)
+        self.sidebar_layout.addWidget(self.sidebar_list)
+        sidebar_content.setLayout(self.sidebar_layout)
+        self.sidebar.setWidget(sidebar_content)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.sidebar)
+
+        # Ensure the sidebar can be dragged and docked freely
+        self.sidebar.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+
+        # Content area setup
+        self.content_area = QWidget()
+        self.setCentralWidget(self.content_area)
+        self.content_layout = QVBoxLayout()
 
         # URL input
         self.url_input = QLineEdit()
@@ -56,20 +121,25 @@ class MainWindow(QMainWindow):
         self.control_layout.addWidget(self.start_button)
         
         # Adding widgets to the main layout
-        main_container = QHBoxLayout()
-        main_container.addWidget(self.sidebar)
-        main_container.addLayout(self.content_area)
-
-        self.content_area.addWidget(self.url_input)
-        self.content_area.addLayout(self.control_layout)
-        self.content_area.addWidget(self.download_list)
-
-        # Set central widget
-        container = QWidget()
-        container.setLayout(main_container)
-        self.setCentralWidget(container)
+        self.content_layout.addWidget(self.url_input)
+        self.content_layout.addLayout(self.control_layout)
+        self.content_layout.addWidget(self.download_list)
+        self.content_area.setLayout(self.content_layout)
 
         self.downloaders = {'Mengunduh': [], 'Menunggu': [], 'Terhenti': []}
+
+        self.setWindowIcon(QIcon("icon.png"))
+        self.setWindowTitle("Torrent Downloader")
+
+    def toggle_sidebar(self):
+        if self.sidebar.isVisible():
+            self.sidebar.hide()
+        else:
+            self.sidebar.show()
+
+    def switch_sidebar(self, category):
+        self.sidebar_list.clear()
+        self.sidebar_list.addItem(category)
 
     def start_download(self):
         torrent_url = self.url_input.text().strip()
@@ -151,7 +221,7 @@ class MainWindow(QMainWindow):
 
     def update_list_display(self, category):
         self.download_list.clear()
-        for downloader in self.downloaders[category]:
+        for downloader in self.downloaders.get(category, []):
             self.add_download_item(downloader.torrent_url, downloader, category)
 
     def update_status(self, status, downloader, finished, download_rate, total_downloaded, total_size, eta):
@@ -179,6 +249,20 @@ class MainWindow(QMainWindow):
         if current:
             category = current.text()
             self.update_list_display(category)
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage(
+            "Torrent Downloader",
+            "The application is still running in the system tray.",
+            QSystemTrayIcon.Information,
+            2000
+        )
+
+    def on_tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.Trigger:
+            self.show()
 
 if __name__ == "__main__":
     app = QApplication([])
